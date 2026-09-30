@@ -1,0 +1,955 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Compass Hill Walkthrough</title>
+<meta name="description" content="Walk Compass Hill Estate in first or third person: open doors, work the lights, ride the elevator and drive the golf cart through the tunnels.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Caslon+Text:ital,wght@0,400;0,700;1,400&family=Public+Sans:wght@400;600&display=swap">
+<style>
+/* Layout: full-bleed 3D view; a limestone-and-slate plate for the menu; quiet HUD in the corners.
+   Deliberately single-theme (the view is a scene, not a document), dark overlay over the render. */
+:root {
+  --slate: #33443d;        /* Vermont unfading green slate */
+  --slate-deep: #1c2622;
+  --limestone: #e6ddc8;    /* Ordovician limestone, weathered buff */
+  --oak: #b08a5a;          /* site white oak */
+  --ink: #f3efe4;
+  --muted: #b9b3a2;
+  --bronze: #c9a46a;       /* bronze-colored stainless */
+  --hud-bg: rgba(20, 28, 25, 0.72);
+  --display: "Libre Caslon Text", "Baskerville", "Georgia", serif;
+  --body: "Public Sans", "Helvetica Neue", Arial, sans-serif;
+  color-scheme: dark;
+}
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--slate-deep); color: var(--ink); font-family: var(--body); overflow: hidden; }
+#view { position: fixed; inset: 0; }
+#view canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+
+.hud { position: fixed; pointer-events: none; font-size: 0.8rem; }
+#where { top: calc(12px + env(safe-area-inset-top, 0px)); left: 16px; background: var(--hud-bg); padding: 8px 12px; border-radius: 4px; display: grid; gap: 2px; }
+#where b { font-family: var(--display); font-weight: 400; font-size: 1.05rem; letter-spacing: 0.01em; }
+#where span { color: var(--muted); font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; }
+#compass { top: calc(12px + env(safe-area-inset-top, 0px)); right: 16px; width: 64px; height: 64px; }
+#prompt { left: 50%; bottom: calc(18% + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--hud-bg);
+  padding: 8px 14px; border-radius: 4px; font-size: 0.9rem; white-space: nowrap; }
+#prompt kbd { font-family: var(--body); font-weight: 600; border: 1px solid var(--bronze); color: var(--bronze); border-radius: 3px; padding: 0 6px; margin-right: 8px; }
+#reticle { left: 50%; top: 50%; width: 6px; height: 6px; margin: -3px 0 0 -3px; border-radius: 50%; background: rgba(243,239,228,0.8); box-shadow: 0 0 0 1px rgba(0,0,0,0.4); }
+#keys { left: 16px; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); background: var(--hud-bg); padding: 8px 12px; border-radius: 4px; color: var(--muted); line-height: 1.6; font-size: 0.74rem; }
+#keys kbd { font-family: var(--body); color: var(--ink); font-weight: 600; }
+#toast { left: 50%; top: calc(16px + env(safe-area-inset-top, 0px)); transform: translateX(-50%); background: var(--hud-bg); padding: 6px 12px; border-radius: 4px; transition: opacity .4s; }
+
+#menu { position: fixed; inset: 0; display: grid; place-items: center; padding: 16px; background: rgba(12, 17, 15, 0.55); overflow-y: auto; }
+.plate { width: min(760px, 100%); background: var(--limestone); color: var(--slate-deep); border-radius: 3px; box-shadow: 0 20px 60px rgba(0,0,0,0.45);
+  display: grid; grid-template-columns: 1.1fr 1fr; overflow: hidden; }
+.plate > * { min-width: 0; }
+.title { padding: 28px 28px 24px; display: grid; gap: 14px; align-content: start; }
+.eyebrow { font-size: 0.7rem; letter-spacing: 0.14em; text-transform: uppercase; color: #6a5d45; }
+h1 { font-family: var(--display); font-weight: 400; font-size: clamp(2rem, 5vw, 2.9rem); line-height: 1.02; margin: 0; text-wrap: balance; }
+h1 i { color: var(--slate); }
+.lede { margin: 0; line-height: 1.5; font-size: 0.92rem; max-width: 40ch; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+button { font: inherit; cursor: pointer; }
+.primary { background: var(--slate); color: var(--ink); border: 0; border-radius: 3px; padding: 10px 18px; font-weight: 600; letter-spacing: 0.02em; }
+.primary:disabled { opacity: 0.55; cursor: progress; }
+.quiet { background: transparent; color: var(--slate); border: 1px solid var(--slate); border-radius: 3px; padding: 9px 14px; }
+button:focus-visible { outline: 2px solid var(--bronze); outline-offset: 2px; }
+.bar { height: 3px; background: rgba(51,68,61,0.2); border-radius: 2px; overflow: hidden; }
+.bar i { display: block; height: 100%; width: 0; background: var(--slate); transition: width .2s; }
+#status { font-size: 0.75rem; color: #6a5d45; font-variant-numeric: tabular-nums; }
+.side { background: var(--slate); color: var(--ink); padding: 22px 22px 20px; display: grid; gap: 14px; align-content: start; }
+.side h2 { font-family: var(--display); font-weight: 400; font-size: 1.05rem; margin: 0; }
+.places { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.places button { text-align: left; background: rgba(243,239,228,0.07); color: var(--ink); border: 1px solid rgba(243,239,228,0.14); border-radius: 3px; padding: 7px 9px; font-size: 0.8rem; }
+.places button:hover { border-color: var(--bronze); }
+.places small { display: block; color: var(--muted); font-size: 0.68rem; }
+dl.controls { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 0; font-size: 0.78rem; }
+dl.controls dt { color: var(--bronze); font-weight: 600; }
+dl.controls dd { margin: 0; color: var(--muted); }
+@media (max-width: 640px) { .plate { grid-template-columns: 1fr; } .title { padding: 22px 20px 18px; } #keys { display: none; } }
+
+#touch { position: fixed; inset: 0; pointer-events: none; }
+#touch .stick { position: absolute; left: 22px; bottom: calc(26px + env(safe-area-inset-bottom, 0px)); width: 120px; height: 120px; border-radius: 50%;
+  border: 1px solid rgba(243,239,228,0.35); background: rgba(20,28,25,0.3); pointer-events: auto; touch-action: none; }
+#touch .stick i { position: absolute; left: 40px; top: 40px; width: 40px; height: 40px; border-radius: 50%; background: rgba(243,239,228,0.55); }
+#touch .btns { position: absolute; right: 18px; bottom: calc(26px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 10px; pointer-events: auto; }
+#touch .btns button { width: 64px; height: 44px; border-radius: 22px; border: 1px solid rgba(243,239,228,0.4); background: rgba(20,28,25,0.55); color: var(--ink); font-size: 0.78rem; }
+#menuBtn { position: fixed; right: 16px; top: calc(86px + env(safe-area-inset-top, 0px)); background: var(--hud-bg); color: var(--ink); border: 1px solid rgba(243,239,228,0.25); border-radius: 3px; padding: 6px 10px; font-size: 0.75rem; }
+@media (prefers-reduced-motion: reduce) { #toast, .bar i { transition: none; } }
+</style>
+
+<div id="view"></div>
+<div id="reticle" class="hud" hidden></div>
+<div id="where" class="hud" hidden><span id="whereZone">Hilltop</span><b id="whereRoom">Motor court</b></div>
+<canvas id="compass" class="hud" width="128" height="128" hidden></canvas>
+<div id="prompt" class="hud" hidden><kbd id="promptKey">E</kbd><span id="promptText"></span></div>
+<div id="toast" class="hud" style="opacity:0"></div>
+<div id="keys" class="hud" hidden>
+  <kbd>WASD</kbd> move · <kbd>Shift</kbd> run · <kbd>Space</kbd> jump<br>
+  <kbd>E</kbd> use · <kbd>V</kbd> first/third person · <kbd>N</kbd> day/night · <kbd>Esc</kbd> menu
+</div>
+<button id="menuBtn" hidden>Menu</button>
+<div id="touch" hidden>
+  <div class="stick" id="stick"><i></i></div>
+  <div class="btns"><button id="tUse">Use</button><button id="tJump">Jump</button><button id="tView">View</button></div>
+</div>
+
+<div id="menu">
+  <div class="plate" role="dialog" aria-labelledby="menuTitle">
+    <div class="title">
+      <div class="eyebrow">Warren County, Ohio · 39.4° N</div>
+      <h1 id="menuTitle">Compass Hill <i>Estate</i></h1>
+      <p class="lede">Walk the master plan as built out: the S-bend drive, the pavilion on its cistern, the three-level ICF house, and the cart tunnels under the court. Open doors, flip the lights, ride the elevator, and drive a golf cart down the ramp.</p>
+      <div class="bar" aria-hidden="true"><i id="barFill"></i></div>
+      <div id="status">Loading the model…</div>
+      <div class="actions">
+        <button class="primary" id="enter" disabled>Enter the estate</button>
+        <button class="quiet" id="viewMode">View: first person</button>
+        <button class="quiet" id="timeMode">Time: late afternoon</button>
+      </div>
+    </div>
+    <div class="side">
+      <h2>Go to</h2>
+      <div class="places" id="places"></div>
+      <h2>Controls</h2>
+      <dl class="controls">
+        <dt>WASD</dt><dd>Walk; Shift runs; Space jumps</dd>
+        <dt>Mouse</dt><dd>Look around (click the view to capture it)</dd>
+        <dt>E</dt><dd>Open doors, switches, elevator, fire, gate, cart</dd>
+        <dt>V</dt><dd>First or third person</dd>
+        <dt>N</dt><dd>Day or night</dd>
+        <dt>Cart</dt><dd>W/S throttle, A/D steer, E to get out</dd>
+      </dl>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/loaders/GLTFLoader.js"></script>
+<script>
+"use strict";
+(() => {
+const FT = 0.3048;
+// Site coordinates from the master plan (feet): X east, S south of the road, Z above the main floor.
+const site = (X, S, Z) => new THREE.Vector3(X * FT, Z * FT, (S - 760) * FT);
+const toSite = (v) => ({ X: v.x / FT, S: v.z / FT + 760, Z: v.y / FT });
+
+const PLACES = [
+  { name: "The gate", note: "Entrance court", p: [0, 150, -2], yaw: 180 },
+  { name: "Motor court", note: "Arrival", p: [0, 500, 0], yaw: 180 },
+  { name: "Pavilion", note: "On the cistern", p: [0, 612, 0.6], yaw: 0 },
+  { name: "Front door", note: "Porte-cochère", p: [0, 702, 0], yaw: 180 },
+  { name: "Great room", note: "Main level", p: [0, 760, 0], yaw: 180 },
+  { name: "Walkout gallery", note: "Lower level", p: [0, 762, -11], yaw: 180 },
+  { name: "Lounge", note: "Second floor", p: [0, 762, 11], yaw: 180 },
+  { name: "Cart bay", note: "Tunnel, under the door", p: [0, 718, -11], yaw: 0 },
+  { name: "Tunnel loop", note: "Around the cistern", p: [0, 617, -11], yaw: 90 },
+  { name: "Garage", note: "West loop", p: [-166, 627, 0], yaw: 90 },
+  { name: "Berm Ring", note: "Zen garden", p: [0, 800, -12], yaw: 180 },
+  { name: "Meadow & pool", note: "Down the slope", p: [0, 965, -27], yaw: 180 },
+];
+
+// Rooms from the §7 schedule (feet; X east of the axis, S from the road).
+const ROOMS = [
+  // [level, name, x0, x1, s0, s1]
+  ["Walkout level", "Theater", -60, -36, 736, 751], ["Walkout level", "Wine cellar", -36, -26, 736, 751],
+  ["Walkout level", "Parts library", -26, -12, 736, 751], ["Walkout level", "Elevator", -12, -4, 736, 751],
+  ["Walkout level", "Lobby to the cart bay", -4, 4, 736, 751], ["Walkout level", "Main stair", 4, 12, 736, 751],
+  ["Walkout level", "Safe room", 12, 24, 736, 751], ["Walkout level", "Electrical / IT", 24, 34, 736, 751],
+  ["Walkout level", "Mechanical", 34, 60, 736, 751], ["Walkout level", "Hall", -60, 60, 751, 756],
+  ["Walkout level", "Guest suite", -60, -36, 756, 784], ["Walkout level", "Suite 5", -36, -12, 756, 784],
+  ["Walkout level", "Gallery", -12, 12, 756, 784], ["Walkout level", "Rec room + bar", 12, 42, 756, 784],
+  ["Walkout level", "Gym", 42, 60, 756, 784],
+  ["Main level", "Primary suite", -60, -34, 736, 784], ["Main level", "Mudroom", -34, -22, 736, 751],
+  ["Main level", "Powder rooms", -22, -12, 736, 751], ["Main level", "Elevator", -12, -4, 736, 751],
+  ["Main level", "Foyer", -4, 4, 736, 751], ["Main level", "Main stair", 4, 12, 736, 751],
+  ["Main level", "Butler's pantry", 12, 28, 736, 751], ["Main level", "Service stair", 28, 36, 736, 751],
+  ["Main level", "Scullery", 36, 60, 736, 751], ["Main level", "Hall", -34, 60, 751, 756],
+  ["Main level", "Library", -34, -16, 756, 784], ["Main level", "Great room", -16, 16, 756, 784],
+  ["Main level", "Dining room", 16, 34, 756, 784], ["Main level", "Kitchen", 34, 60, 756, 784],
+  ["Second floor", "Dressing room, suite 1", -60, -36, 736, 751], ["Second floor", "Dressing room, suite 2", -36, -12, 736, 751],
+  ["Second floor", "Elevator", -12, -4, 736, 751], ["Second floor", "Landing under the cupola", -4, 4, 736, 751],
+  ["Second floor", "Main stair", 4, 12, 736, 751], ["Second floor", "Dressing room, suite 3", 12, 28, 736, 751],
+  ["Second floor", "Service stair", 28, 36, 736, 751], ["Second floor", "Laundry", 36, 46, 736, 751],
+  ["Second floor", "Dressing room, suite 4", 46, 60, 736, 751], ["Second floor", "Upper hall", -60, 60, 751, 756],
+  ["Second floor", "Suite 1", -60, -36, 756, 784], ["Second floor", "Suite 2", -36, -12, 756, 784],
+  ["Second floor", "Lounge", -12, 12, 756, 784], ["Second floor", "Suite 3", 12, 36, 756, 784],
+  ["Second floor", "Suite 4", 36, 60, 756, 784],
+];
+
+function locate(pos) {
+  const { X, S, Z } = toSite(pos);
+  if (X > -60 && X < 60 && S > 736 && S < 784 && Z > -12 && Z < 21) {
+    const lvl = Z < -2 ? "Walkout level" : Z < 9.5 ? "Main level" : "Second floor";
+    const r = ROOMS.find(r => r[0] === lvl && X >= r[2] && X < r[3] && S >= r[4] && S < r[5]);
+    return ["House · " + lvl, r ? r[1] : "House"];
+  }
+  if (Z < -3.5 && S > 500 && S < 740 && X > -300 && X < 60) {
+    const dc = Math.hypot(X, S - 591);
+    if (dc < 33) return ["Tunnels", "Loop around the cistern"];
+    if (S > 710) return ["Tunnels", "House cart bay"];
+    if (X < -150) return ["Tunnels", S < 667 ? "Inverter room" : (X < -177 ? "Cart ramp" : "Garage lobby")];
+    if (X < -14) return ["Tunnels", "Garage tunnel"];
+    if (S > 666 && S < 694) return ["Tunnels", "Forecourt junction"];
+    if (S < 536) return ["Tunnels", "Sealed stub toward the gate"];
+    if (S < 560) return ["Tunnels", "North loop junction"];
+    return ["Tunnels", "Main tunnel"];
+  }
+  if (S < 0) return ["Site", "County road"];
+  if (S < 140) return ["Entrance", "Lay-by and visitor pads"];
+  if (S < 265) return ["Entrance", S < 222 ? "Teardrop, outside the gate" : "Gate buildings"];
+  if (S < 516) return ["Approach", "S-bend drive"];
+  if (X < -135 && X > -300 && S > 540 && S < 700) return ["Hilltop", "Garage and west loop"];
+  const dc = Math.hypot(X, S - 591);
+  if (dc < 26) return ["Hilltop", "Pavilion on the cistern"];
+  if (dc < 76) return ["Hilltop", "Motor court"];
+  if (S < 736 && Math.abs(X) < 70) return ["Hilltop", S > 708 ? "Porte-cochère" : "Forecourt and covered walk"];
+  if (S >= 784 && S < 930 && Math.abs(X) < 95) return ["Berm Ring", S > 864 ? (S > 889 ? "Stone arch and berm" : "Rain-garden basin") : "Zen garden"];
+  if (S > 905 && Math.abs(X) > 165) return ["Legacy woods", X < 0 ? "Southwest woods" : "Southeast woods"];
+  if (S > 940) return ["Meadow", Math.hypot(X, S - 1020) < 45 ? "Seasonal pool" : "Meadow and view corridor"];
+  if (X > 110 && S > 500 && S < 720) return ["East shoulder", "Septic field under meadow"];
+  return ["Grounds", "Lawn"];
+}
+
+// ---------------------------------------------------------------- renderer
+const view = document.getElementById("view");
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+view.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(70, 1, 0.05, 1800);
+
+// sky dome with a soft gradient and sun glow
+const skyUniforms = {
+  top: { value: new THREE.Color("#6f97c4") }, horizon: { value: new THREE.Color("#e9dcc2") },
+  sunDir: { value: new THREE.Vector3() }, sunColor: { value: new THREE.Color("#fff1d0") }, glow: { value: 1.0 },
+};
+const sky = new THREE.Mesh(new THREE.SphereGeometry(1500, 32, 16), new THREE.ShaderMaterial({
+  side: THREE.BackSide, depthWrite: false, fog: false, uniforms: skyUniforms,
+  vertexShader: "varying vec3 vDir; void main(){ vDir = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }",
+  fragmentShader: `uniform vec3 top; uniform vec3 horizon; uniform vec3 sunDir; uniform vec3 sunColor; uniform float glow; varying vec3 vDir;
+    void main(){ float h = clamp(vDir.y, -0.1, 1.0); vec3 c = mix(horizon, top, pow(max(h,0.0), 0.55));
+      float s = max(dot(normalize(vDir), normalize(sunDir)), 0.0); c += sunColor * (pow(s, 900.0) * 3.0 + pow(s, 12.0) * 0.25) * glow;
+      if (vDir.y < 0.0) c = mix(horizon, horizon * 0.7, clamp(-vDir.y * 8.0, 0.0, 1.0));
+      gl_FragColor = vec4(c, 1.0); }`,
+}));
+sky.renderOrder = -1;
+scene.add(sky);
+scene.fog = new THREE.Fog("#d9d2bf", 220, 1100);
+
+const hemi = new THREE.HemisphereLight("#cfe0f0", "#5a5236", 0.55);
+scene.add(hemi);
+const sun = new THREE.DirectionalLight("#ffe8c4", 2.4);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -45; sun.shadow.camera.right = 45; sun.shadow.camera.top = 45; sun.shadow.camera.bottom = -45;
+sun.shadow.camera.near = 1; sun.shadow.camera.far = 300;
+sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.03;
+scene.add(sun, sun.target);
+// late-afternoon sun from the southwest, about 28 degrees up
+const SUN_DIR = new THREE.Vector3(-Math.sin(THREE.MathUtils.degToRad(35)) * Math.cos(0.49), Math.sin(0.49), Math.cos(THREE.MathUtils.degToRad(35)) * Math.cos(0.49)).normalize();
+const ambient = new THREE.AmbientLight("#ffffff", 0.12);
+scene.add(ambient);
+
+const POOL_SIZE = 10;
+const pool = [];
+for (let i = 0; i < POOL_SIZE; i++) { const l = new THREE.PointLight("#ffd29a", 0, 10, 1.6); l.visible = false; scene.add(l); pool.push(l); }
+
+let night = false;
+const base = { hemi: 0.55, ambient: 0.12 };
+function applyTime() {
+  if (!night) {
+    sun.intensity = 2.4; sun.color.set("#ffe8c4"); base.hemi = 0.55; base.ambient = 0.12;
+    skyUniforms.top.value.set("#6f97c4"); skyUniforms.horizon.value.set("#e9dcc2"); skyUniforms.glow.value = 1.0;
+    scene.fog.color.set("#d9d2bf"); renderer.toneMappingExposure = 0.92;
+  } else {
+    sun.intensity = 0.18; sun.color.set("#9fb4e0"); base.hemi = 0.08; base.ambient = 0.03;
+    skyUniforms.top.value.set("#060b18"); skyUniforms.horizon.value.set("#1a2233"); skyUniforms.glow.value = 0.05;
+    scene.fog.color.set("#0e1320"); renderer.toneMappingExposure = 1.0;
+  }
+  document.getElementById("timeMode").textContent = "Time: " + (night ? "night" : "late afternoon");
+  toast(night ? "Night" : "Late afternoon");
+  lampsDirty = true;
+}
+
+// ---------------------------------------------------------------- collision grid
+const CELL = 2.0;
+const tris = [];            // flat xyz * 3 per triangle (static, world space)
+const cells = new Map();
+const key = (ix, iz) => ix * 65536 + iz;
+function addTri(ax, ay, az, bx, by, bz, cx, cy, cz) {
+  const id = tris.length / 9;
+  tris.push(ax, ay, az, bx, by, bz, cx, cy, cz);
+  const x0 = Math.floor(Math.min(ax, bx, cx) / CELL), x1 = Math.floor(Math.max(ax, bx, cx) / CELL);
+  const z0 = Math.floor(Math.min(az, bz, cz) / CELL), z1 = Math.floor(Math.max(az, bz, cz) / CELL);
+  for (let i = x0; i <= x1; i++) for (let j = z0; j <= z1; j++) {
+    const k = key(i + 32768, j + 32768); let c = cells.get(k); if (!c) cells.set(k, c = []); c.push(id);
+  }
+}
+let triArr = null, stamp = null, stampN = 1;
+
+function meshTriangles(root, matrixOf, cb) {
+  const v = new THREE.Vector3(), a = [], m = new THREE.Matrix4();
+  root.traverse(o => {
+    if (!o.isMesh) return;
+    m.copy(matrixOf(o));
+    const pos = o.geometry.attributes.position, idx = o.geometry.index;
+    const n = idx ? idx.count : pos.count;
+    for (let i = 0; i < n; i += 3) {
+      a.length = 0;
+      for (let k = 0; k < 3; k++) { v.fromBufferAttribute(pos, idx ? idx.getX(i + k) : i + k).applyMatrix4(m); a.push(v.x, v.y, v.z); }
+      cb(a);
+    }
+  });
+}
+
+// closest point on triangle (Ericson)
+const _cp = new THREE.Vector3();
+function closestPt(px, py, pz, t, i) {
+  const ax = t[i], ay = t[i + 1], az = t[i + 2], bx = t[i + 3], by = t[i + 4], bz = t[i + 5], cx = t[i + 6], cy = t[i + 7], cz = t[i + 8];
+  const abx = bx - ax, aby = by - ay, abz = bz - az, acx = cx - ax, acy = cy - ay, acz = cz - az;
+  const apx = px - ax, apy = py - ay, apz = pz - az;
+  const d1 = abx * apx + aby * apy + abz * apz, d2 = acx * apx + acy * apy + acz * apz;
+  if (d1 <= 0 && d2 <= 0) return _cp.set(ax, ay, az);
+  const bpx = px - bx, bpy = py - by, bpz = pz - bz;
+  const d3 = abx * bpx + aby * bpy + abz * bpz, d4 = acx * bpx + acy * bpy + acz * bpz;
+  if (d3 >= 0 && d4 <= d3) return _cp.set(bx, by, bz);
+  const vc = d1 * d4 - d3 * d2;
+  if (vc <= 0 && d1 >= 0 && d3 <= 0) { const v = d1 / (d1 - d3); return _cp.set(ax + v * abx, ay + v * aby, az + v * abz); }
+  const cpx = px - cx, cpy = py - cy, cpz = pz - cz;
+  const d5 = abx * cpx + aby * cpy + abz * cpz, d6 = acx * cpx + acy * cpy + acz * cpz;
+  if (d6 >= 0 && d5 <= d6) return _cp.set(cx, cy, cz);
+  const vb = d5 * d2 - d1 * d6;
+  if (vb <= 0 && d2 >= 0 && d6 <= 0) { const w = d2 / (d2 - d6); return _cp.set(ax + w * acx, ay + w * acy, az + w * acz); }
+  const va = d3 * d6 - d5 * d4;
+  if (va <= 0 && (d4 - d3) >= 0 && (d5 - d6) >= 0) { const w = (d4 - d3) / ((d4 - d3) + (d5 - d6)); return _cp.set(bx + w * (cx - bx), by + w * (cy - by), bz + w * (cz - bz)); }
+  const denom = 1 / (va + vb + vc), v = vb * denom, w = vc * denom;
+  return _cp.set(ax + abx * v + acx * w, ay + aby * v + acy * w, az + abz * v + acz * w);
+}
+
+function forCells(x, z, r, fn) {
+  stampN++;
+  const x0 = Math.floor((x - r) / CELL), x1 = Math.floor((x + r) / CELL), z0 = Math.floor((z - r) / CELL), z1 = Math.floor((z + r) / CELL);
+  for (let i = x0; i <= x1; i++) for (let j = z0; j <= z1; j++) {
+    const c = cells.get(key(i + 32768, j + 32768)); if (!c) continue;
+    for (const id of c) { if (stamp[id] === stampN) continue; stamp[id] = stampN; fn(id * 9); }
+  }
+}
+
+// dynamic colliders (doors, gate, garage doors, elevator, carts): local-space triangles
+const dynamics = [];
+const _inv = new THREE.Matrix4(), _lp = new THREE.Vector3(), _wp = new THREE.Vector3(), _n = new THREE.Vector3();
+
+// push a sphere out of geometry; returns true if moved. ignore: dynamic object to skip
+function pushSphere(p, r, ignore) {
+  let hit = false;
+  forCells(p.x, p.z, r, (i) => {
+    const c = closestPt(p.x, p.y, p.z, triArr, i);
+    const dx = p.x - c.x, dy = p.y - c.y, dz = p.z - c.z, d2 = dx * dx + dy * dy + dz * dz;
+    if (d2 < r * r && d2 > 1e-10) { const d = Math.sqrt(d2), k = (r - d) / d; p.x += dx * k; p.y += dy * k; p.z += dz * k; hit = true; }
+  });
+  for (const d of dynamics) {
+    if (d.obj === ignore || !d.solid()) continue;
+    d.obj.getWorldPosition(_wp);
+    if (_wp.distanceTo(p) > d.radius + r) continue;
+    _inv.copy(d.obj.matrixWorld).invert();
+    _lp.copy(p).applyMatrix4(_inv);
+    let moved = false;
+    for (let i = 0; i < d.tris.length; i += 9) {
+      const c = closestPt(_lp.x, _lp.y, _lp.z, d.tris, i);
+      const dx = _lp.x - c.x, dy = _lp.y - c.y, dz = _lp.z - c.z, d2 = dx * dx + dy * dy + dz * dz;
+      if (d2 < r * r && d2 > 1e-10) { const dd = Math.sqrt(d2), k = (r - dd) / dd; _lp.x += dx * k; _lp.y += dy * k; _lp.z += dz * k; moved = true; }
+    }
+    if (moved) { p.copy(_lp.applyMatrix4(d.obj.matrixWorld)); hit = true; }
+  }
+  return hit;
+}
+
+// highest floor under (x, z) at or below y; returns {y, obj}
+function rayTriY(x, z, t, i) {
+  const ax = t[i], az = t[i + 2], bx = t[i + 3], bz = t[i + 5], cx = t[i + 6], cz = t[i + 8];
+  const d = (bz - cz) * (ax - cx) + (cx - bx) * (az - cz);
+  if (Math.abs(d) < 1e-12) return null;
+  const l1 = ((bz - cz) * (x - cx) + (cx - bx) * (z - cz)) / d;
+  const l2 = ((cz - az) * (x - cx) + (ax - cx) * (z - cz)) / d;
+  const l3 = 1 - l1 - l2;
+  if (l1 < -1e-6 || l2 < -1e-6 || l3 < -1e-6) return null;
+  return l1 * t[i + 1] + l2 * t[i + 4] + l3 * t[i + 7];
+}
+function floorAt(x, y, z, ignore) {
+  let best = -Infinity, obj = null;
+  forCells(x, z, 0.01, (i) => { const h = rayTriY(x, z, triArr, i); if (h !== null && h <= y && h > best) { best = h; obj = null; } });
+  for (const d of dynamics) {
+    if (d.obj === ignore || !d.floor()) continue;
+    d.obj.getWorldPosition(_wp);
+    if (Math.hypot(_wp.x - x, _wp.z - z) > d.radius) continue;
+    // sample in world space using the object's world triangles
+    const m = d.obj.matrixWorld, t = d.world || (d.world = new Float32Array(d.tris.length));
+    const e = m.elements;
+    for (let i = 0; i < d.tris.length; i += 3) {
+      const lx = d.tris[i], ly = d.tris[i + 1], lz = d.tris[i + 2];
+      t[i] = e[0] * lx + e[4] * ly + e[8] * lz + e[12]; t[i + 1] = e[1] * lx + e[5] * ly + e[9] * lz + e[13]; t[i + 2] = e[2] * lx + e[6] * ly + e[10] * lz + e[14];
+    }
+    for (let i = 0; i < t.length; i += 9) { const h = rayTriY(x, z, t, i); if (h !== null && h <= y && h > best) { best = h; obj = d.obj; } }
+  }
+  return best === -Infinity ? null : { y: best, obj };
+}
+
+function ceilingAt(x, y, z) {
+  let best = Infinity;
+  forCells(x, z, 0.01, (i) => { const h = rayTriY(x, z, triArr, i); if (h !== null && h > y && h < best) best = h; });
+  return best;
+}
+let indoor = 0;
+
+// ---------------------------------------------------------------- scene state
+const interactives = [];     // Object3D with userData.interact
+const lampsByGroup = {};     // group -> [mesh]
+const flamesByGroup = {};
+const lightAnchors = [];     // {pos, group, intensity, color, range}
+const groupOn = {};
+const byName = {};
+let lampsDirty = true;
+let elevator = null, elevatorDoors = [], carts = [];
+
+function setGroup(g, on) {
+  groupOn[g] = on;
+  lampsDirty = true;
+  (lampsByGroup[g] || []).forEach(m => m.traverse(o => { if (o.isMesh) { o.material.emissiveIntensity = on ? o.userData.baseEmissive : 0; } }));
+}
+
+// ---------------------------------------------------------------- player
+const player = {
+  pos: site(0, 500, 0), vel: new THREE.Vector3(), yaw: Math.PI, pitch: -0.05,
+  grounded: false, groundObj: null, lastGroundPos: new THREE.Vector3(), third: false, cart: null, walkPhase: 0,
+  safe: site(0, 500, 0),
+};
+const EYE = 1.62, STEP = 0.36, RAD = 0.3;
+
+// a simple walker for third person (limestone shirt, denim, boots)
+const avatar = new THREE.Group();
+(function buildAvatar() {
+  const mat = (c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.8 });
+  const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.17, 0.62, 12), mat("#8a5a36")); torso.position.y = 1.18;
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 12), mat("#b98a66")); head.position.y = 1.62;
+  const hat = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.02, 20), mat("#3b3a2e")); hat.position.y = 1.7;
+  const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 0.12, 16), mat("#3b3a2e")); crown.position.y = 1.76;
+  avatar.add(torso, head, hat, crown);
+  const limb = (w, h, c) => { const g = new THREE.Group(); const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, w), mat(c)); m.position.y = -h / 2; g.add(m); return g; };
+  avatar.legL = limb(0.13, 0.86, "#2c3a57"); avatar.legL.position.set(-0.09, 0.88, 0);
+  avatar.legR = limb(0.13, 0.86, "#2c3a57"); avatar.legR.position.set(0.09, 0.88, 0);
+  avatar.armL = limb(0.09, 0.6, "#8a5a36"); avatar.armL.position.set(-0.25, 1.46, 0);
+  avatar.armR = limb(0.09, 0.6, "#8a5a36"); avatar.armR.position.set(0.25, 1.46, 0);
+  avatar.add(avatar.legL, avatar.legR, avatar.armL, avatar.armR);
+  avatar.traverse(o => { if (o.isMesh) o.castShadow = true; });
+})();
+avatar.visible = false;
+scene.add(avatar);
+
+// ---------------------------------------------------------------- input
+const keys = {};
+let running = false, menuOpen = true, locked = false;
+const touchMove = { x: 0, y: 0 };
+addEventListener("keydown", (e) => {
+  if (e.code === "Escape") { return; }
+  keys[e.code] = true;
+  if (menuOpen) return;
+  if (e.code === "KeyE") interact();
+  if (e.code === "KeyV") toggleView();
+  if (e.code === "KeyN") { night = !night; applyTime(); }
+  if (e.code === "Space" && player.grounded && !player.cart) { player.vel.y = 4.2; player.grounded = false; }
+});
+addEventListener("keyup", (e) => { keys[e.code] = false; });
+const canvas = renderer.domElement;
+canvas.addEventListener("click", () => { if (!menuOpen && !locked && !isTouch) requestLock(); });
+function requestLock() { try { const r = canvas.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch (e) {} }
+document.addEventListener("pointerlockchange", () => {
+  const was = locked; locked = document.pointerLockElement === canvas;
+  if (was && !locked && !menuOpen) openMenu();
+});
+document.addEventListener("mousemove", (e) => {
+  if (menuOpen) return;
+  if (locked || dragging) look(e.movementX, e.movementY);
+});
+let dragging = false;
+canvas.addEventListener("mousedown", () => { if (!locked && !menuOpen) dragging = true; });
+addEventListener("mouseup", () => { dragging = false; });
+function look(dx, dy) {
+  player.yaw -= dx * 0.0022; player.pitch -= dy * 0.0022;
+  player.pitch = Math.max(-1.45, Math.min(1.35, player.pitch));
+}
+
+// touch
+const isTouch = matchMedia("(pointer: coarse)").matches;
+if (isTouch) {
+  const stick = document.getElementById("stick"), knob = stick.firstElementChild;
+  let sid = null, cx = 0, cy = 0;
+  stick.addEventListener("pointerdown", (e) => { sid = e.pointerId; const r = stick.getBoundingClientRect(); cx = r.left + r.width / 2; cy = r.top + r.height / 2; stick.setPointerCapture(sid); });
+  stick.addEventListener("pointermove", (e) => {
+    if (e.pointerId !== sid) return;
+    let dx = e.clientX - cx, dy = e.clientY - cy; const d = Math.hypot(dx, dy), m = 48;
+    if (d > m) { dx *= m / d; dy *= m / d; }
+    touchMove.x = dx / m; touchMove.y = dy / m; knob.style.transform = `translate(${dx}px,${dy}px)`;
+  });
+  const end = () => { sid = null; touchMove.x = touchMove.y = 0; knob.style.transform = ""; };
+  stick.addEventListener("pointerup", end); stick.addEventListener("pointercancel", end);
+  let lid = null, lx = 0, ly = 0;
+  canvas.addEventListener("pointerdown", (e) => { if (lid === null) { lid = e.pointerId; lx = e.clientX; ly = e.clientY; } });
+  canvas.addEventListener("pointermove", (e) => { if (e.pointerId === lid) { look((e.clientX - lx) * 1.6, (e.clientY - ly) * 1.6); lx = e.clientX; ly = e.clientY; } });
+  canvas.addEventListener("pointerup", (e) => { if (e.pointerId === lid) lid = null; });
+  document.getElementById("tUse").onclick = () => interact();
+  document.getElementById("tJump").onclick = () => { if (player.grounded && !player.cart) { player.vel.y = 4.2; player.grounded = false; } };
+  document.getElementById("tView").onclick = () => toggleView();
+}
+
+function toggleView() {
+  player.third = !player.third;
+  document.getElementById("viewMode").textContent = "View: " + (player.third ? "third person" : "first person");
+}
+
+// ---------------------------------------------------------------- menu
+const menu = document.getElementById("menu");
+const placesEl = document.getElementById("places");
+PLACES.forEach(p => {
+  const b = document.createElement("button");
+  b.innerHTML = `${p.name}<small>${p.note}</small>`;
+  b.onclick = () => { teleport(p); if (ready) closeMenu(); };
+  placesEl.appendChild(b);
+});
+let ready = false;
+document.getElementById("enter").onclick = () => closeMenu();
+document.getElementById("viewMode").onclick = () => toggleView();
+document.getElementById("timeMode").onclick = () => { night = !night; applyTime(); };
+document.getElementById("menuBtn").onclick = () => openMenu();
+function openMenu() {
+  menuOpen = true; menu.hidden = false;
+  ["reticle", "prompt", "keys", "menuBtn", "touch"].forEach(id => document.getElementById(id).hidden = true);
+  if (document.pointerLockElement) document.exitPointerLock();
+}
+function closeMenu() {
+  if (!ready) return;
+  menuOpen = false; menu.hidden = true;
+  document.getElementById("reticle").hidden = false;
+  document.getElementById("where").hidden = false;
+  document.getElementById("compass").hidden = false;
+  document.getElementById("keys").hidden = isTouch;
+  document.getElementById("menuBtn").hidden = false;
+  document.getElementById("touch").hidden = !isTouch;
+  if (!isTouch) requestLock();
+}
+function teleport(p) {
+  if (player.cart) exitCart(true);
+  player.pos.copy(site(p.p[0], p.p[1], p.p[2] + 0.3));
+  // yaw: 0 looks north (-z), 180 looks south, 90 looks west
+  player.vel.set(0, 0, 0); player.yaw = THREE.MathUtils.degToRad(p.yaw); player.pitch = -0.05;
+  player.safe.copy(player.pos);
+}
+function toast(msg) {
+  const t = document.getElementById("toast"); t.textContent = msg; t.style.opacity = 1;
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.style.opacity = 0, 1800);
+}
+
+// ---------------------------------------------------------------- interactions
+const anims = [];  // {obj, from, to, t, dur, apply}
+function animate(obj, dur, apply) { anims.push({ obj, t: 0, dur, apply }); }
+const ease = (t) => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+
+function doRotate(o, open) {
+  const u = o.userData; u.open = open;
+  const axis = u.axis === "x" ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 1, 0);
+  const q0 = o.quaternion.clone();
+  const q1 = u.baseQuat.clone().multiply(new THREE.Quaternion().setFromAxisAngle(axis, open ? THREE.MathUtils.degToRad(u.angle) : 0));
+  animate(o, 0.9, (t) => o.quaternion.copy(q0).slerp(q1, ease(t)));
+}
+function doSlide(o, open, dur) {
+  const u = o.userData; u.open = open;
+  const p0 = o.position.clone();
+  const p1 = u.basePos.clone(); if (open) p1.add(new THREE.Vector3(u.dx || 0, u.dz || 0, -(u.dy || 0)));
+  animate(o, dur || 1.6, (t) => o.position.copy(p0).lerp(p1, ease(t)));
+}
+function describe(o) {
+  const u = o.userData;
+  switch (u.interact) {
+    case "rotate": return (u.open ? "Close " : "Open ") + u.label;
+    case "slide": return (u.open ? "Close " : "Open ") + u.label;
+    case "operate": { const t = byName[u.target]; return t && t.userData.open ? "Close the gate" : "Open the gate"; }
+    case "switch": return (groupOn[u.group] ? "Turn off " : "Turn on ") + u.label;
+    case "fire": return (groupOn["fire_" + u.group] ? "Put out " : "Light ") + (u.group === "pavilion" ? "the pavilion fire" : "the masonry heater");
+    case "toggle": return (u.on ? "Turn off " : "Turn on ") + "the " + u.label;
+    case "spin": return u.label.charAt(0).toUpperCase() + u.label.slice(1);
+    case "elevator_call": return "Call the elevator";
+    case "elevator_go": return "Go to the " + ["walkout", "main", "second"][u.level] + " level";
+    case "elevator": return "Elevator car";
+    case "cart": return "Drive the golf cart";
+  }
+  return u.label || "Use";
+}
+function interact() {
+  if (player.cart) { exitCart(); return; }
+  const o = target; if (!o) return;
+  const u = o.userData;
+  switch (u.interact) {
+    case "rotate": { const open = !u.open; doRotate(o, open); if (u.pair && byName[u.pair]) doRotate(byName[u.pair], open); break; }
+    case "slide": doSlide(o, !u.open); break;
+    case "operate": { const t = byName[u.target]; if (t) doSlide(t, !t.userData.open, 5.5); break; }
+    case "switch": setGroup(u.group, !groupOn[u.group]); toast(u.label + (groupOn[u.group] ? " on" : " off")); break;
+    case "fire": {
+      const g = "fire_" + u.group, on = !groupOn[g]; setGroup(g, on);
+      (flamesByGroup[u.group] || []).forEach(f => f.visible = on); break;
+    }
+    case "toggle": {
+      u.on = !u.on;
+      o.traverse(m => { if (m.isMesh) { m.material.emissive.set(u.emit || "#ffffff"); m.material.emissiveIntensity = u.on ? 1.4 : 0; } });
+      break;
+    }
+    case "spin": { const q0 = o.quaternion.clone(); animate(o, 1.2, (t) => o.quaternion.copy(q0).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), ease(t) * Math.PI * 2))); toast("Valve turned"); break; }
+    case "elevator_call": case "elevator_go": sendElevator(u.level); break;
+    case "cart": enterCart(o); break;
+  }
+}
+
+// elevator: car moves between levels; landing doors open only where the car stands
+function sendElevator(level) {
+  const e = elevator; if (!e) return;
+  if (e.moving) return;
+  if (e.level === level) { openElevatorDoor(level); return; }
+  elevatorDoors.forEach(d => { if (d.userData.open) doSlide(d, false, 1.2); });
+  e.moving = true;
+  const y0 = e.obj.position.y, y1 = e.baseY + (e.levels[level] - e.levels[0]);
+  const dur = 1.2 + Math.abs(y1 - y0) / 0.7;
+  animate(e.obj, 1.2, () => {});   // doors close first
+  e.pending = () => {
+    animate(e.obj, dur, (t) => { e.obj.position.y = y0 + (y1 - y0) * ease(t); if (t >= 1) { e.moving = false; e.level = level; openElevatorDoor(level); } });
+  };
+  anims.push({ obj: e.obj, t: 0, dur: 1.2, apply: (t) => { if (t >= 1 && e.pending) { const p = e.pending; e.pending = null; p(); } } });
+  toast("Elevator to the " + ["walkout", "main", "second"][level] + " level");
+}
+function openElevatorDoor(level) { const d = elevatorDoors.find(d => d.userData.elev_door === level); if (d && !d.userData.open) doSlide(d, true, 1.2); }
+
+// carts
+function enterCart(c) {
+  player.cart = c; c.userData.speed = 0;
+  avatar.visible = false;
+  toast("W/S drive, A/D steer, E to get out");
+}
+function exitCart(silent) {
+  const c = player.cart; if (!c) return;
+  player.cart = null;
+  const yaw = c.rotation.y, left = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
+  const p = c.position.clone().addScaledVector(left, 1.6); p.y += 0.3;
+  pushSphere(p.clone().setY(p.y + 0.9), RAD, c);
+  player.pos.copy(p); player.vel.set(0, 0, 0);
+  if (!silent) toast("Out of the cart");
+}
+
+// ---------------------------------------------------------------- loading
+const statusEl = document.getElementById("status"), barFill = document.getElementById("barFill");
+const loader = new THREE.GLTFLoader();
+// The repo serves the model as .glb; the published page carries the same bytes under a served binary type.
+const MODEL_URLS = ["CompassHill.glb", "CompassHill-model.wasm"];
+function loadModel(i) {
+  loader.load(MODEL_URLS[i], onLoad, (e) => {
+    if (e.total) { const f = e.loaded / e.total; barFill.style.width = (f * 90).toFixed(1) + "%"; statusEl.textContent = `Loading the model… ${(e.loaded / 1e6).toFixed(1)} of ${(e.total / 1e6).toFixed(1)} MB`; }
+    else statusEl.textContent = `Loading the model… ${(e.loaded / 1e6).toFixed(1)} MB`;
+  }, (err) => {
+    if (i + 1 < MODEL_URLS.length) return loadModel(i + 1);
+    statusEl.textContent = "The model didn't load. Reload the page to try again."; console.error(err);
+  });
+}
+loadModel(0);
+
+function onLoad(gltf) {
+  statusEl.textContent = "Building collision…";
+  const root = gltf.scene;
+  scene.add(root);
+  root.updateMatrixWorld(true);
+  const staticRoots = [];
+  root.traverse(o => {
+    if (o.name) byName[o.name] = o;
+    const u = o.userData || {};
+    if (o.isMesh) {
+      o.castShadow = true; o.receiveShadow = true;
+      const mats = Array.isArray(o.material) ? o.material : [o.material];
+      mats.forEach(m => {
+        const n = (m.name || "").toLowerCase();
+        if (n === "glass") { m.transparent = true; m.opacity = 0.22; m.depthWrite = false; m.side = THREE.DoubleSide; m.metalness = 0; m.roughness = 0.05; o.castShadow = false; }
+        else if (n === "water") { m.transparent = true; m.opacity = 0.8; m.depthWrite = false; o.castShadow = false; }
+        else if (["meadow_tuft", "sedge", "pv", "slate", "standing_seam", "oak_siding", "lawn", "meadow"].includes(n)) m.side = THREE.DoubleSide;
+        if (m.map) m.map.anisotropy = 4;
+      });
+    }
+    if (u.light) lightAnchors.push({ obj: o, group: u.light_group, intensity: u.intensity, color: new THREE.Color(u.color), range: u.range, pos: new THREE.Vector3() });
+    if (u.lamp_group) {
+      o.traverse(m => { if (m.isMesh) { m.material = m.material.clone(); m.userData.baseEmissive = m.material.emissiveIntensity || 1; m.castShadow = false; } });
+      (lampsByGroup[u.lamp_group] = lampsByGroup[u.lamp_group] || []).push(o);
+    }
+    if (u.flame_group) { (flamesByGroup[u.flame_group] = flamesByGroup[u.flame_group] || []).push(o); o.traverse(m => { if (m.isMesh) m.castShadow = false; }); }
+    if (u.interact) {
+      interactives.push(o);
+      u.baseQuat = o.quaternion.clone(); u.basePos = o.position.clone(); u.open = false;
+      if (u.interact === "toggle") o.traverse(m => { if (m.isMesh) m.material = m.material.clone(); });
+    }
+  });
+  // terrain and big ground pieces receive but don't cast
+  ["Terrain", "Site_detail", "Site_static"].forEach(n => { const o = byName[n]; if (o) o.traverse(m => { if (m.isMesh) m.castShadow = false; }); });
+  // collision: static colliders + dynamic ones
+  root.traverse(o => {
+    const u = o.userData || {};
+    if (u.collide === 1 && !u.interact && !o.parent.userData.interact) staticRoots.push(o);
+  });
+  const skipChildInteract = (o) => o;
+  staticRoots.forEach(r => meshTriangles(r, (m) => m.matrixWorld, (a) => addTri(...a)));
+  triArr = new Float32Array(tris); tris.length = 0; stamp = new Uint32Array(triArr.length / 9 + 1);
+  interactives.forEach(o => {
+    const u = o.userData;
+    if (u.collide !== 1) return;
+    const local = [];
+    const inv = new THREE.Matrix4().copy(o.matrixWorld).invert();
+    meshTriangles(o, (m) => new THREE.Matrix4().multiplyMatrices(inv, m.matrixWorld), (a) => local.push(...a));
+    let rad = 0; for (let i = 0; i < local.length; i += 3) rad = Math.max(rad, Math.hypot(local[i], local[i + 1], local[i + 2]));
+    const d = { obj: o, tris: new Float32Array(local), radius: rad + 0.5,
+      solid: () => true, floor: () => u.interact === "elevator" || u.interact === "cart" };
+    dynamics.push(d);
+  });
+  elevator = (() => { const o = interactives.find(o => o.userData.interact === "elevator"); if (!o) return null;
+    return { obj: o, levels: o.userData.levels, level: 0, baseY: o.position.y, moving: false }; })();
+  elevatorDoors = interactives.filter(o => o.userData.elev_door !== undefined);
+  carts = interactives.filter(o => o.userData.interact === "cart");
+  // initial group states (lights on in the house at late afternoon, fires out)
+  lightAnchors.forEach(a => { if (groupOn[a.group] === undefined) groupOn[a.group] = !!a.obj.userData.on; });
+  Object.keys(lampsByGroup).forEach(g => { if (groupOn[g] === undefined) groupOn[g] = true; setGroup(g, groupOn[g]); });
+  Object.keys(flamesByGroup).forEach(g => { groupOn["fire_" + g] = false; flamesByGroup[g].forEach(f => f.visible = false); });
+  openElevatorDoor(0);
+  barFill.style.width = "100%";
+  statusEl.textContent = `Ready · ${(triArr.length / 9 / 1000).toFixed(0)}k collision triangles · ${interactives.length} things to use`;
+  const enter = document.getElementById("enter"); enter.disabled = false; enter.focus();
+  ready = true;
+  window.__compass = { ready: true, player, interact, sendElevator, byName, teleport: (i) => teleport(PLACES[i]), setTarget: (o) => target = o, groupOn, toggleView, closeMenu, simulate, keys, get target() { return target; } };
+}
+
+// ---------------------------------------------------------------- per-frame
+let target = null;
+const ray = new THREE.Raycaster();
+const _fwd = new THREE.Vector3(), _right = new THREE.Vector3(), _tmp = new THREE.Vector3();
+let lampTimer = 0, whereTimer = 0;
+
+function updatePlayer(dt) {
+  if (player.cart) return updateCart(dt);
+  const f = (keys.KeyW || keys.ArrowUp ? 1 : 0) - (keys.KeyS || keys.ArrowDown ? 1 : 0) - touchMove.y;
+  const s = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0) + touchMove.x;
+  running = !!(keys.ShiftLeft || keys.ShiftRight);
+  const speed = running ? 4.2 : 1.8;
+  _fwd.set(-Math.sin(player.yaw), 0, -Math.cos(player.yaw));
+  _right.set(Math.cos(player.yaw), 0, -Math.sin(player.yaw));
+  const want = _tmp.set(0, 0, 0).addScaledVector(_fwd, f).addScaledVector(_right, s);
+  if (want.lengthSq() > 1) want.normalize();
+  want.multiplyScalar(speed);
+  const accel = player.grounded ? 12 : 3;
+  player.vel.x += (want.x - player.vel.x) * Math.min(1, accel * dt);
+  player.vel.z += (want.z - player.vel.z) * Math.min(1, accel * dt);
+  // ride moving platforms (elevator)
+  if (player.grounded && player.groundObj) {
+    const gp = player.groundObj.getWorldPosition(new THREE.Vector3());
+    player.pos.add(gp.clone().sub(player.lastGroundPos));
+  }
+  player.vel.y -= 9.8 * dt;
+  const steps = Math.ceil(Math.max(Math.abs(player.vel.x), Math.abs(player.vel.z), Math.abs(player.vel.y)) * dt / 0.15) || 1;
+  for (let k = 0; k < steps; k++) {
+    player.pos.addScaledVector(player.vel, dt / steps);
+    for (const h of [STEP + RAD + 0.02, 1.05, 1.42]) {
+      const c = new THREE.Vector3(player.pos.x, player.pos.y + h, player.pos.z);
+      if (pushSphere(c, RAD, null)) { player.pos.x = c.x; player.pos.z = c.z; if (h > 1.3 && c.y < player.pos.y + h - 0.01 && player.vel.y > 0) player.vel.y = 0; }
+    }
+    const fl = floorAt(player.pos.x, player.pos.y + STEP, player.pos.z, null);
+    const wasGrounded = player.grounded;
+    if (fl && player.vel.y <= 0 && (player.pos.y - fl.y) <= (wasGrounded ? STEP : 0.02)) {
+      player.pos.y = fl.y; player.vel.y = 0; player.grounded = true; player.groundObj = fl.obj;
+    } else if (fl && fl.y > player.pos.y) {
+      player.pos.y = fl.y; player.vel.y = Math.max(0, player.vel.y); player.grounded = true; player.groundObj = fl.obj;
+    } else player.grounded = false;
+  }
+  if (player.groundObj) player.groundObj.getWorldPosition(player.lastGroundPos);
+  if (player.grounded && !player.groundObj) player.safe.copy(player.pos);
+  if (player.pos.y < -60) { player.pos.copy(player.safe); player.vel.set(0, 0, 0); toast("Back on solid ground"); }
+  const moving = Math.hypot(player.vel.x, player.vel.z);
+  player.walkPhase += moving * dt * 2.6;
+}
+
+function updateCart(dt) {
+  const c = player.cart, u = c.userData;
+  const thr = (keys.KeyW || keys.ArrowUp ? 1 : 0) - (keys.KeyS || keys.ArrowDown ? 1 : 0) - touchMove.y;
+  const st = (keys.KeyA || keys.ArrowLeft ? 1 : 0) - (keys.KeyD || keys.ArrowRight ? 1 : 0) - touchMove.x;
+  u.speed = u.speed || 0;
+  u.speed += thr * 4.0 * dt;
+  u.speed *= Math.pow(thr === 0 ? 0.35 : 0.9, dt);
+  u.speed = Math.max(-2.5, Math.min(6.7, u.speed));   // about 15 mph top speed
+  c.rotation.y += st * dt * 1.4 * Math.max(-1, Math.min(1, u.speed / 2.5));
+  const yaw = c.rotation.y, fwd = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
+  const next = c.position.clone().addScaledVector(fwd, u.speed * dt);
+  // body spheres front and back
+  let blocked = false;
+  for (const off of [1.1, -1.1]) {
+    const p = next.clone().addScaledVector(fwd, off); p.y += 1.0;
+    const q = p.clone();
+    if (pushSphere(q, 0.95, c)) { next.add(q.sub(p).setY(0)); blocked = true; }
+  }
+  if (blocked) u.speed *= 0.5;
+  const fl = floorAt(next.x, next.y + 0.45, next.z, c);
+  if (fl && next.y - fl.y < 1.5) next.y = fl.y > next.y ? fl.y : Math.max(fl.y, next.y - 9.8 * dt * 2);
+  c.position.copy(next);
+  c.updateMatrixWorld(true);
+  player.pos.copy(c.position).addScaledVector(fwd, -0.4);
+  player.pos.y = c.position.y + 0.1;
+  player.yaw = yaw - Math.PI / 2 + (player.cartLook || 0);
+}
+
+function updateCamera(dt) {
+  const eye = new THREE.Vector3(player.pos.x, player.pos.y + (player.cart ? 1.25 : EYE), player.pos.z);
+  const dir = new THREE.Vector3(-Math.sin(player.yaw) * Math.cos(player.pitch), Math.sin(player.pitch), -Math.cos(player.yaw) * Math.cos(player.pitch));
+  if (!player.third) {
+    camera.position.copy(eye);
+    avatar.visible = false;
+  } else {
+    const back = player.cart ? 6.5 : 3.4;
+    const want = eye.clone().addScaledVector(dir, -back).add(new THREE.Vector3(0, player.cart ? 1.2 : 0.35, 0));
+    // pull the camera in if something is in the way
+    const p = eye.clone(), stepV = want.clone().sub(eye), n = 16;
+    let last = eye.clone();
+    for (let i = 1; i <= n; i++) {
+      p.copy(eye).addScaledVector(stepV, i / n);
+      const q = p.clone();
+      if (pushSphere(q, 0.22, player.cart)) break;
+      last.copy(p);
+    }
+    camera.position.lerp(last, 1 - Math.pow(0.0001, dt));
+    if (camera.position.distanceTo(last) > 3) camera.position.copy(last);
+    avatar.visible = !player.cart && camera.position.distanceTo(eye) > 1.1;
+  }
+  camera.lookAt(camera.position.clone().add(dir));
+  if (player.third && !player.cart) {
+    avatar.position.copy(player.pos);
+    avatar.rotation.y = player.yaw;
+    const sw = Math.sin(player.walkPhase) * Math.min(0.7, Math.hypot(player.vel.x, player.vel.z) * 0.35);
+    avatar.legL.rotation.x = sw; avatar.legR.rotation.x = -sw; avatar.armL.rotation.x = -sw * 0.8; avatar.armR.rotation.x = sw * 0.8;
+  }
+  // sun follows the player so shadows stay sharp nearby
+  sun.position.copy(player.pos).addScaledVector(SUN_DIR, 120);
+  sun.target.position.copy(player.pos);
+  skyUniforms.sunDir.value.copy(SUN_DIR);
+  sky.position.copy(camera.position);
+}
+
+function updateTarget() {
+  ray.setFromCamera({ x: 0, y: 0 }, camera);
+  ray.far = player.third ? 8 : 3.2;
+  const hits = ray.intersectObjects(interactives, true);
+  let found = null;
+  for (const h of hits) {
+    let o = h.object; while (o && !(o.userData && o.userData.interact)) o = o.parent;
+    if (!o) continue;
+    if (o.userData.interact === "elevator") continue;   // use the buttons, not the car
+    if (player.third && h.point.distanceTo(player.pos) > 3.6) continue;
+    found = o; break;
+  }
+  target = player.cart ? null : found;
+  const pr = document.getElementById("prompt");
+  if (menuOpen) { pr.hidden = true; return; }
+  if (player.cart) { pr.hidden = false; document.getElementById("promptText").textContent = "Get out of the cart"; return; }
+  pr.hidden = !target;
+  if (target) document.getElementById("promptText").textContent = describe(target);
+}
+
+function updateLights(dt) {
+  lampTimer -= dt;
+  if (lampTimer > 0 && !lampsDirty) return;
+  lampTimer = 0.3; lampsDirty = false;
+  const cp = camera.position;
+  const cand = [];
+  for (const a of lightAnchors) {
+    if (!groupOn[a.group]) continue;
+    a.obj.getWorldPosition(a.pos);
+    const d = a.pos.distanceTo(cp);
+    if (d < 45) cand.push([d, a]);
+  }
+  cand.sort((x, y) => x[0] - y[0]);
+  pool.forEach((l, i) => {
+    const c = cand[i];
+    if (!c) { l.visible = false; l.intensity = 0; return; }
+    const a = c[1];
+    l.visible = true; l.position.copy(a.pos); l.color.copy(a.color);
+    l.distance = a.range * 1.4; l.intensity = a.intensity * (night ? 0.075 : 0.045);
+  });
+  // lamp bodies glow more at night
+  Object.entries(lampsByGroup).forEach(([g, list]) => list.forEach(o => o.traverse(m => { if (m.isMesh) m.material.emissiveIntensity = groupOn[g] ? m.userData.baseEmissive * (night ? 1.6 : 0.8) : 0; })));
+}
+
+const compassCtx = document.getElementById("compass").getContext("2d");
+function drawCompass() {
+  const c = compassCtx, r = 60;
+  c.clearRect(0, 0, 128, 128);
+  c.save(); c.translate(64, 64);
+  c.fillStyle = "rgba(20,28,25,0.72)"; c.beginPath(); c.arc(0, 0, r, 0, Math.PI * 2); c.fill();
+  c.rotate(player.yaw);  // north up when facing north
+  c.fillStyle = "#c9a46a";
+  for (let k = 0; k < 8; k++) {
+    const len = k % 2 ? 26 : 44; c.save(); c.rotate(k * Math.PI / 4);
+    c.beginPath(); c.moveTo(0, -len); c.lineTo(5, 0); c.lineTo(-5, 0); c.closePath(); c.globalAlpha = k === 0 ? 1 : 0.55; c.fill(); c.restore();
+  }
+  c.globalAlpha = 1; c.fillStyle = "#f3efe4"; c.font = "600 16px Public Sans, Arial"; c.textAlign = "center"; c.textBaseline = "middle";
+  c.fillText("N", 0, -50);
+  c.restore();
+}
+
+let flick = 0;
+function simulate(seconds) {   // advance without rendering (used for automated checks)
+  const dt = 1 / 30;
+  for (let t = 0; t < seconds; t += dt) {
+    for (let i = anims.length - 1; i >= 0; i--) { const a = anims[i]; a.t = Math.min(1, a.t + dt / a.dur); a.apply(a.t); if (a.t >= 1) anims.splice(i, 1); }
+    scene.updateMatrixWorld();
+    if (ready && !menuOpen) updatePlayer(dt);
+  }
+}
+function frame(dt) {
+  for (let i = anims.length - 1; i >= 0; i--) {
+    const a = anims[i]; a.t = Math.min(1, a.t + dt / a.dur); a.apply(a.t); if (a.t >= 1) anims.splice(i, 1);
+  }
+  if (ready && !menuOpen) updatePlayer(dt);
+  scene.updateMatrixWorld();
+  updateCamera(dt);
+  if (ready) {
+    updateTarget(); updateLights(dt);
+    const up = ceilingAt(camera.position.x, camera.position.y, camera.position.z);
+    const want = up - camera.position.y < 8 ? 1 : 0;
+    indoor += (want - indoor) * Math.min(1, dt * 3);
+    hemi.intensity = base.hemi * (1 - 0.7 * indoor);
+    ambient.intensity = base.ambient * (1 - 0.4 * indoor);
+  }
+  flick += dt;
+  Object.entries(flamesByGroup).forEach(([g, list]) => list.forEach(f => { if (f.visible) f.scale.y = 0.85 + 0.25 * Math.sin(flick * 13 + f.id) * Math.sin(flick * 7.3); }));
+  whereTimer -= dt;
+  if (whereTimer <= 0 && ready) {
+    whereTimer = 0.25;
+    const [z, r] = locate(player.pos);
+    document.getElementById("whereZone").textContent = z; document.getElementById("whereRoom").textContent = r;
+  }
+  drawCompass();
+  renderer.render(scene, camera);
+}
+
+function resize() {
+  const w = innerWidth, h = innerHeight;
+  renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+}
+addEventListener("resize", resize);
+resize();
+applyTime();
+let last = performance.now();
+renderer.setAnimationLoop((now) => { const dt = Math.min(0.05, (now - last) / 1000); last = now; frame(dt); });
+})();
+</script>
