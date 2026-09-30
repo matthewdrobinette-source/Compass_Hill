@@ -10,7 +10,7 @@ Master plan and 3D model of the Compass Hill Estate in southwest Ohio (Warren Co
 | [`blender/CompassHill.blend`](blender/CompassHill.blend) | The built Blender scene (open in Blender 4.2+). |
 | [`renders/`](renders) | Cycles stills of the estate. |
 | [`walkthrough/`](walkthrough) | Interactive walkthrough: first and third person, doors, lights, elevator, golf cart. |
-| [`tools/`](tools) | Floor-plan generator and the plan's PDF renderer. |
+| [`tools/`](tools) | Floor-plan generator, the plan's PDF renderer, and `Get-CompassHill.ps1` to clone the repo on Windows. |
 
 ## Walk the estate
 
